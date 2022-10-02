@@ -8,15 +8,18 @@
     @Author : GCast31
 */
 
+pub mod level;
+
 use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime};
 use game2d::game::game::*;
 use game2d::graphics::color::Color;
 use game2d::graphics::fonts::FontsManager;
-use game2d::graphics::graphics::Graphics;
+use game2d::graphics::graphics::{Graphics, Draw};
 
 use game2d::inputs::keyboard::Keyboard;
 use game2d::inputs::keyboard::Keys;
 
+use level::{MAP, MAP_LEVEL};
 
 // ################################################################################################################
 // #                                      C O N S T R A N T E S  FOR  G A M E                                     #
@@ -29,16 +32,20 @@ pub const GAME_WINDOW_WIDTH: u32 = 800;
 // #                                        S T R U C T U R E    G A M E                                          #
 // ################################################################################################################
 pub struct Plateformer {
+    actual_level: i32,
+    map: MAP,
 }
 
 #[allow(dead_code)]
 impl Default for Plateformer {
     fn default() -> Self {
         Plateformer {
-            
+            actual_level: 0,
+            map: MAP::default(),
         }
     }
 }
+
 
 // ################################################################################################################
 // #                                                   M A I N                                                    #
@@ -71,6 +78,7 @@ fn main() {
 
 }
 
+
 // ################################################################################################################
 // #                                                    L O A D                                                   #
 // ################################################################################################################
@@ -78,6 +86,12 @@ fn main() {
 pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
     // Set background color
     graphics.set_background_color(Color::BLACK);
+
+    // Load initial level
+    if let Some(game) = game {
+        game.actual_level = 1;
+        game.map.load_level(game.actual_level);
+    }
 }
 
 // ################################################################################################################
@@ -102,7 +116,9 @@ pub fn keypressed(graphics: &mut Graphics, game: &mut Option<Plateformer>, key: 
 // ################################################################################################################ 
 #[allow(unused_variables)]
 pub fn draw(graphics: &mut Graphics, game: &mut Option<Plateformer>, fonts_manager: &mut Option<FontsManager>) {
-  
+   if let Some(game) = game {
+     game.map.draw(graphics);
+   }
 }
 
 // ################################################################################################################
