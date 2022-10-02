@@ -10,16 +10,24 @@
 
 pub mod level;
 
-use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime};
+use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime, Position};
 use game2d::game::game::*;
 use game2d::graphics::color::Color;
 use game2d::graphics::fonts::FontsManager;
-use game2d::graphics::graphics::{Graphics, Draw};
+use game2d::graphics::graphics::{Graphics, Draw, DrawMode};
 
 use game2d::inputs::keyboard::Keyboard;
 use game2d::inputs::keyboard::Keys;
 
-use level::{MAP, MAP_LEVEL};
+use level::Map;
+
+/*****
+ * TEST
+ *****/
+ struct Player {
+    x: Position,
+    y: Position,
+ }
 
 // ################################################################################################################
 // #                                      C O N S T R A N T E S  FOR  G A M E                                     #
@@ -33,7 +41,8 @@ pub const GAME_WINDOW_WIDTH: u32 = 800;
 // ################################################################################################################
 pub struct Plateformer {
     actual_level: i32,
-    map: MAP,
+    map: Map,
+    player: Player,
 }
 
 #[allow(dead_code)]
@@ -41,7 +50,8 @@ impl Default for Plateformer {
     fn default() -> Self {
         Plateformer {
             actual_level: 0,
-            map: MAP::default(),
+            map: Map::new(),
+            player : Player { x: 0., y: 0.},
         }
     }
 }
@@ -92,6 +102,7 @@ pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
         game.actual_level = 1;
         game.map.load_level(game.actual_level);
     }
+
 }
 
 // ################################################################################################################
@@ -99,7 +110,20 @@ pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
 // ################################################################################################################ 
 #[allow(unused_variables)]
 pub fn update(graphics: &mut Graphics, game: &mut Option<Plateformer>, keyboard: &mut Keyboard, dt: DeltaTime) {
- 
+    if let Some(game) = game {
+        if keyboard.is_down(&Keys::Left) {
+            game.player.x -= 64. * dt;
+        }
+        if keyboard.is_down(&Keys::Right) {
+            game.player.x += 64. * dt;
+        }
+        if keyboard.is_down(&Keys::Up) {
+            game.player.y -= 64. * dt;
+        }
+        if keyboard.is_down(&Keys::Down) {
+            game.player.y += 64. * dt;
+        }
+    }
 }
 
 
@@ -117,8 +141,23 @@ pub fn keypressed(graphics: &mut Graphics, game: &mut Option<Plateformer>, key: 
 #[allow(unused_variables)]
 pub fn draw(graphics: &mut Graphics, game: &mut Option<Plateformer>, fonts_manager: &mut Option<FontsManager>) {
    if let Some(game) = game {
-     game.map.draw(graphics);
-   }
+        // Draw the map
+        game.map.draw(graphics);
+
+        // Draw player
+        graphics.rectangle(DrawMode::Fill, game.player.x, game.player.y, 32, 32, Some(Color::WHITE));
+   
+        // Debug
+        if let Some(fonts_manager) = fonts_manager {
+            if let Some(element) = game.map.get_tile_at(game.player.x, game.player.y) {
+                graphics.print(fonts_manager, element.filename.clone(), 0., GAME_WINDOW_HEIGHT as Position - 20., Option::None);
+            
+            } else {
+                graphics.print(fonts_manager, "Nothing".to_string(), 0., GAME_WINDOW_HEIGHT as Position - 20., Option::None);
+            }
+        }
+    
+    }
 }
 
 // ################################################################################################################
