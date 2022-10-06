@@ -12,11 +12,10 @@ pub mod level;
 
 use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime, Position};
 use game2d::game::game::*;
+use game2d::game::inputs::Inputs;
 use game2d::graphics::color::Color;
 use game2d::graphics::fonts::FontsManager;
 use game2d::graphics::graphics::{Graphics, Draw, DrawMode};
-
-use game2d::inputs::keyboard::Keyboard;
 use game2d::inputs::keyboard::Keys;
 
 use level::Map;
@@ -109,18 +108,18 @@ pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
 // #                                                   U P D A T E                                                #
 // ################################################################################################################ 
 #[allow(unused_variables)]
-pub fn update(graphics: &mut Graphics, game: &mut Option<Plateformer>, keyboard: &mut Keyboard, dt: DeltaTime) {
+pub fn update(graphics: &mut Graphics, game: &mut Option<Plateformer>, inputs: &mut Inputs, dt: DeltaTime) {
     if let Some(game) = game {
-        if keyboard.is_down(&Keys::Left) {
+        if inputs.keyboard.is_down(&Keys::Left) {
             game.player.x -= 64. * dt;
         }
-        if keyboard.is_down(&Keys::Right) {
+        if inputs.keyboard.is_down(&Keys::Right) {
             game.player.x += 64. * dt;
         }
-        if keyboard.is_down(&Keys::Up) {
+        if inputs.keyboard.is_down(&Keys::Up) {
             game.player.y -= 64. * dt;
         }
-        if keyboard.is_down(&Keys::Down) {
+        if inputs.keyboard.is_down(&Keys::Down) {
             game.player.y += 64. * dt;
         }
     }
@@ -139,7 +138,7 @@ pub fn keypressed(graphics: &mut Graphics, game: &mut Option<Plateformer>, key: 
 // #                                                    D R A W                                                   #
 // ################################################################################################################ 
 #[allow(unused_variables)]
-pub fn draw(graphics: &mut Graphics, game: &mut Option<Plateformer>, fonts_manager: &mut Option<FontsManager>) {
+pub fn draw(graphics: &mut Graphics, game: &mut Option<Plateformer>, inputs: &mut Inputs, fonts_manager: &mut Option<FontsManager>) {
    if let Some(game) = game {
         // Draw the map
         game.map.draw(graphics);
@@ -149,7 +148,7 @@ pub fn draw(graphics: &mut Graphics, game: &mut Option<Plateformer>, fonts_manag
    
         // Debug
         if let Some(fonts_manager) = fonts_manager {
-            if let Some(element) = game.map.get_tile_at(game.player.x, game.player.y) {
+            if let Some(element) = game.map.get_tile_at(inputs.mouse.get_x(), inputs.mouse.get_y()) {
                 graphics.print(fonts_manager, element.filename.clone(), 0., GAME_WINDOW_HEIGHT as Position - 20., Option::None);
             
             } else {
