@@ -9,24 +9,24 @@
 */
 
 pub mod level;
+pub mod player;
 
-use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime, Position};
+use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime, Velocity2d, Position2d, Position, Dimension2d};
 use game2d::game::game::*;
 use game2d::game::inputs::Inputs;
 use game2d::graphics::color::Color;
 use game2d::graphics::fonts::FontsManager;
-use game2d::graphics::graphics::{Graphics, Draw, DrawMode};
+use game2d::graphics::graphics::{Graphics, Draw, DrawMode, Drawable};
 use game2d::inputs::keyboard::Keys;
 
 use level::Map;
+use player::Player;
 
 /*****
  * TEST
  *****/
- struct Player {
-    x: Position,
-    y: Position,
- }
+
+
 
 // ################################################################################################################
 // #                                      C O N S T R A N T E S  FOR  G A M E                                     #
@@ -38,21 +38,22 @@ pub const GAME_WINDOW_WIDTH: u32 = 800;
 // ################################################################################################################
 // #                                        S T R U C T U R E    G A M E                                          #
 // ################################################################################################################
+
 pub struct Plateformer {
     actual_level: i32,
     map: Map,
-    player: Player,
+    entities: Entities,
 }
 
-#[allow(dead_code)]
 impl Default for Plateformer {
     fn default() -> Self {
-        Plateformer {
-            actual_level: 0,
-            map: Map::new(),
-            player : Player { x: 0., y: 0.},
-        }
+        Plateformer { actual_level: 0, map: Map::new(), entities: Entities ::default() }
     }
+}
+
+#[derive(Default)]
+pub struct Entities {
+    player: Option<Player>,
 }
 
 
@@ -96,12 +97,25 @@ pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
     // Set background color
     graphics.set_background_color(Color::BLACK);
 
-    // Load initial level
     if let Some(game) = game {
+        // Load initial level
         game.actual_level = 1;
         game.map.load_level(game.actual_level);
-    }
 
+        // Add Player
+        let player_position: Position2d;
+        if let Some(player_start) = game.map.player_start {
+            player_position = player_start;  
+        } else {
+            player_position = Position2d {x: 0., y: 0.};
+        }
+
+        let player = Player {
+            position: player_position,
+            ..Default::default()
+        };
+        game.entities.player = Some(player);
+    }
 }
 
 // ################################################################################################################
@@ -110,17 +124,9 @@ pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
 #[allow(unused_variables)]
 pub fn update(graphics: &mut Graphics, game: &mut Option<Plateformer>, inputs: &mut Inputs, dt: DeltaTime) {
     if let Some(game) = game {
-        if inputs.keyboard.is_down(&Keys::Left) {
-            game.player.x -= 64. * dt;
-        }
-        if inputs.keyboard.is_down(&Keys::Right) {
-            game.player.x += 64. * dt;
-        }
-        if inputs.keyboard.is_down(&Keys::Up) {
-            game.player.y -= 64. * dt;
-        }
-        if inputs.keyboard.is_down(&Keys::Down) {
-            game.player.y += 64. * dt;
+        // Move player
+        if let Some(player) = &mut game.entities.player {
+            player.update(&inputs, &dt);
         }
     }
 }
@@ -143,9 +149,6 @@ pub fn draw(graphics: &mut Graphics, game: &mut Option<Plateformer>, inputs: &mu
         // Draw the map
         game.map.draw(graphics);
 
-        // Draw player
-        graphics.rectangle(DrawMode::Fill, game.player.x, game.player.y, 32, 32, Some(Color::WHITE));
-   
         // Debug
         if let Some(fonts_manager) = fonts_manager {
             if let Some(element) = game.map.get_tile_at(inputs.mouse.get_x(), inputs.mouse.get_y()) {
@@ -154,6 +157,11 @@ pub fn draw(graphics: &mut Graphics, game: &mut Option<Plateformer>, inputs: &mu
             } else {
                 graphics.print(fonts_manager, "Nothing".to_string(), 0., GAME_WINDOW_HEIGHT as Position - 20., Option::None);
             }
+        }
+
+        // Draw player
+        if let Some(player) = &mut game.entities.player {
+            player.draw(graphics);
         }
     
     }

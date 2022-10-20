@@ -1,20 +1,60 @@
 use std::collections::HashMap;
 
 use game2d::graphics::graphics::{Draw, Drawable};
-use game2d::game::common::{Dimension, Position};
+use game2d::game::common::{Dimension, Position, Position2d};
 
 pub type MapLevel = Vec<Vec<char>>;
 
+pub const MAP_TILE_SIZE: f32 = 32.;
+
+#[derive(Default)]
 pub struct MapElement {
     pub name: String,
     pub filename: String,
     pub solid: bool,
 }
 
+
+#[derive(Default)]
+pub struct MapCoord {
+    pub lig: isize,
+    pub col: isize,
+}
+
+impl From<Position2d> for MapCoord {
+    fn from(position: Position2d) -> Self {
+        let col = (position.x / MAP_TILE_SIZE).floor() as isize;
+        let lig = (position.y / MAP_TILE_SIZE).floor() as isize;
+        
+        Self { lig, col }
+    }
+}
+
+impl MapCoord {
+    pub fn to_Position2d(&self) -> Position2d {
+        Position2d{
+            x: (self.col as f32 - 1_f32) * MAP_TILE_SIZE,
+            y: (self.lig as f32 - 1_f32) * MAP_TILE_SIZE,
+        }
+    }
+}
+
 pub struct Map {
     elements: HashMap<char, MapElement>,
     level: MapLevel,
+    pub player_start: Option<Position2d>,
 }
+
+impl Default for Map {
+    fn default() -> Self {
+        Self { 
+            elements: HashMap::new(), 
+            level: MapLevel::default(), 
+            player_start: None,
+        }
+    }
+}
+
 
 impl Map {
     /*
@@ -39,6 +79,7 @@ impl Map {
         Self { 
             elements,
             level: Vec::new(), 
+            ..Default::default()
         }
     }
 
@@ -52,6 +93,8 @@ impl Map {
            1 => { self.level = level_1(); }
            _ => { self.level = Vec::new(); }
         };
+        let player_coords = MapCoord{lig: 14, col: 2};
+        self.player_start = Some(player_coords.to_Position2d());
     }
 
     /*
@@ -61,11 +104,10 @@ impl Map {
      */
     pub fn get_tile_at(&mut self, x: Position, y: Position) -> Option<&MapElement> {
         let mut map_element = Option::None;
-        let col = (x / 32.).floor() as isize;
-        let lig = (y / 32.).floor() as isize;
-        if col >= 0 && lig >= 0 && lig <= self.level.len() as isize {
-            if let Some(at_lig) = self.level.get(lig as usize) {
-                if let Some(id_element) = at_lig.get(col as usize) {
+        let map_coords: MapCoord = MapCoord::from(Position2d{x, y});
+        if map_coords.col >= 0 && map_coords.lig >= 0 && map_coords.lig <= self.level.len() as isize {
+            if let Some(at_lig) = self.level.get(map_coords.lig as usize) {
+                if let Some(id_element) = at_lig.get(map_coords.col as usize) {
                    map_element = self.elements.get(id_element);
                 }
             }
@@ -73,6 +115,7 @@ impl Map {
 
         map_element
     }
+
 }
 
 impl Draw for Map {
@@ -123,7 +166,7 @@ fn level_1() -> MapLevel {
             vec!['1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'],
             vec!['1', '1', '1', '1', '1', '1', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'],
             vec!['1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'],
-            vec!['1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'],
+            vec!['1', '1', '0', '0', '0', '0', '0', '0', '0', '0', '1', '1', '1', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'],
             vec!['1', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1'],
             vec!['1', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '1'],
             vec!['1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1'],

@@ -7,6 +7,5 @@ edition = "2021"
 
 [dependencies]
 
-
 [dependencies.game2d]
 path = "./lib/game2d"
