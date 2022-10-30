@@ -1,11 +1,17 @@
 use std::collections::HashMap;
 
-use game2d::graphics::graphics::{Draw, Drawable};
-use game2d::game::common::{Dimension, Position, Position2d};
+use game2d::{game::common::{Size, Position, Position2d, WithPosition, WithSize, Transformation}, graphics::{graphics::Drawable, images::ImageInformations}};
 
 pub type MapLevel = Vec<Vec<char>>;
 
 pub const MAP_TILE_SIZE: f32 = 32.;
+
+pub enum MapElementCollideType {
+    Right,
+    Left,
+    Below,
+    Above,
+}
 
 #[derive(Default)]
 pub struct MapElement {
@@ -13,7 +19,6 @@ pub struct MapElement {
     pub filename: String,
     pub solid: bool,
 }
-
 
 #[derive(Default)]
 pub struct MapCoord {
@@ -31,10 +36,10 @@ impl From<Position2d> for MapCoord {
 }
 
 impl MapCoord {
-    pub fn to_Position2d(&self) -> Position2d {
+    pub fn to_position2d(coord: MapCoord) -> Position2d {
         Position2d{
-            x: (self.col as f32 - 1_f32) * MAP_TILE_SIZE,
-            y: (self.lig as f32 - 1_f32) * MAP_TILE_SIZE,
+            x: (coord.col as f32 - 1_f32) * MAP_TILE_SIZE,
+            y: (coord.lig as f32 - 1_f32) * MAP_TILE_SIZE,
         }
     }
 }
@@ -54,7 +59,6 @@ impl Default for Map {
         }
     }
 }
-
 
 impl Map {
     /*
@@ -93,8 +97,7 @@ impl Map {
            1 => { self.level = level_1(); }
            _ => { self.level = Vec::new(); }
         };
-        let player_coords = MapCoord{lig: 14, col: 2};
-        self.player_start = Some(player_coords.to_Position2d());
+        self.player_start = Some(MapCoord::to_position2d(MapCoord{lig: 14, col: 2}));
     }
 
     /*
@@ -102,7 +105,7 @@ impl Map {
      * 
      * @Brief: Get tile at pixel
      */
-    pub fn get_tile_at(&mut self, x: Position, y: Position) -> Option<&MapElement> {
+    pub fn get_tile_at(&self, x: Position, y: Position) -> Option<&MapElement> {
         let mut map_element = Option::None;
         let map_coords: MapCoord = MapCoord::from(Position2d{x, y});
         if map_coords.col >= 0 && map_coords.lig >= 0 && map_coords.lig <= self.level.len() as isize {
@@ -116,9 +119,62 @@ impl Map {
         map_element
     }
 
+    /*
+     * collide()
+     * 
+     * @Brief: Check if entity collide with mapelement
+     */
+    pub fn collide<T: WithPosition + WithSize + ?Sized>(&self, type_collide: MapElementCollideType, entity: &T) -> bool {
+
+        let entity_size = entity.get_size();
+        let entity_position = entity.get_position();
+
+        let height: Size = if entity_size.h > MAP_TILE_SIZE as Size { MAP_TILE_SIZE as Size } else { entity_size.h };
+        let width: Size = if entity_size.w > MAP_TILE_SIZE as Size { MAP_TILE_SIZE as Size } else { entity_size.w };
+
+
+        let (position1, position2) =
+            match type_collide {
+                MapElementCollideType::Above => {
+                    (
+                        Position2d {x: entity_position.x + 1., y: entity_position.y - 1. },
+                        Position2d {x: entity_position.x + width as Position - 2.,y: entity_position.y - 1. }
+                    )
+                },
+                MapElementCollideType::Below => {
+                    (
+                        Position2d {x: entity_position.x + 1., y: entity_position.y + width as Position },
+                        Position2d {x: entity_position.x + width as Position - 2.,y: entity_position.y + width as Position }
+                    )
+                },
+                MapElementCollideType::Left => {
+                    (
+                        Position2d {x: entity_position.x - 1., y: entity_position.y + 3. },
+                        Position2d {x: entity_position.x - 1. ,y: entity_position.y + height as Position - 2.}
+                    )
+                },
+                MapElementCollideType::Right => {
+                    (
+                        Position2d {x: entity_position.x + width as Position, y: entity_position.y + 3. },
+                        Position2d {x: entity_position.x + width as Position ,y: entity_position.y + height as Position - 2.}
+                    )
+                }
+            };
+
+        let id1 = self.get_tile_at(position1.x, position1.y);
+        let id2 = self.get_tile_at(position2.x, position2.y);
+        if let Some(id) = id1 {
+            if id.solid { return true }
+        }
+        if let Some(id) = id2 {
+            if id.solid { return true }
+        }
+        return false
+    }
+
 }
 
-impl Draw for Map {
+impl Drawable for Map {
     fn draw(&mut self, graphics: &mut game2d::graphics::graphics::Graphics) {
 
         for (pos_l, l) in self.level.iter().enumerate()
@@ -133,11 +189,13 @@ impl Draw for Map {
                 
                 // Draw image
                 if let Ok(image) = image {
+                    let scalex = (MAP_TILE_SIZE as Transformation / image.get_width() as Transformation) as Transformation;
+                    let scaley = (MAP_TILE_SIZE as Transformation / image.get_height() as Transformation) as Transformation;
                     graphics.draw_full(
                         &image, 
-                        (pos_c as Dimension * image.get_width()) as Position, 
-                        (pos_l as Dimension * image.get_height()) as Position, 
-                        0., 1., 1., 0., 0. 
+                        (pos_c as Position * MAP_TILE_SIZE as Position), 
+                        (pos_l as Position * MAP_TILE_SIZE as Position), 
+                        0., scalex, scaley, 0., 0. 
                     );
                 }
             }
@@ -148,7 +206,6 @@ impl Draw for Map {
 // ################################################################################################################
 // #                                             L E V E L                                                        #
 // ################################################################################################################
-
 fn level_1() -> MapLevel {
     let level = 
         vec![

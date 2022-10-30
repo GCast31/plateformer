@@ -11,21 +11,18 @@
 pub mod level;
 pub mod player;
 
-use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime, Velocity2d, Position2d, Position, Dimension2d};
+use std::any::TypeId;
+
+use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime, Position2d, Position, Positionable, WithPosition, WithSize, Movable, Standing};
 use game2d::game::game::*;
 use game2d::game::inputs::Inputs;
+use game2d::game::sprites::Sprites;
 use game2d::graphics::color::Color;
 use game2d::graphics::fonts::FontsManager;
-use game2d::graphics::graphics::{Graphics, Draw, DrawMode, Drawable};
+use game2d::graphics::graphics::{Graphics, Drawable};
 use game2d::inputs::keyboard::Keys;
-
 use level::Map;
 use player::Player;
-
-/*****
- * TEST
- *****/
-
 
 
 // ################################################################################################################
@@ -35,6 +32,8 @@ pub const GAME_WINDOW_HEIGHT: u32 = 600;
 pub const GAME_WINDOW_WIDTH: u32 = 800;
 
 
+const SPRITE_FALLING: f32 = 20.;
+
 // ################################################################################################################
 // #                                        S T R U C T U R E    G A M E                                          #
 // ################################################################################################################
@@ -42,20 +41,19 @@ pub const GAME_WINDOW_WIDTH: u32 = 800;
 pub struct Plateformer {
     actual_level: i32,
     map: Map,
-    entities: Entities,
+    list_sprites: Sprites,
 }
 
 impl Default for Plateformer {
     fn default() -> Self {
-        Plateformer { actual_level: 0, map: Map::new(), entities: Entities ::default() }
+        Plateformer { actual_level: 0, map: Map::new(), list_sprites: Sprites::new() }
     }
 }
 
-#[derive(Default)]
-pub struct Entities {
-    player: Option<Player>,
-}
-
+// ################################################################################################################
+// #                                        S P E C I A L   T R A I T                                             #
+// ################################################################################################################
+pub trait SpriteCommonPlaterformerTrait: WithPosition + WithSize + Movable + Standing {} 
 
 // ################################################################################################################
 // #                                                   M A I N                                                    #
@@ -97,6 +95,7 @@ pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
     // Set background color
     graphics.set_background_color(Color::BLACK);
 
+
     if let Some(game) = game {
         // Load initial level
         game.actual_level = 1;
@@ -110,11 +109,9 @@ pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
             player_position = Position2d {x: 0., y: 0.};
         }
 
-        let player = Player {
-            position: player_position,
-            ..Default::default()
-        };
-        game.entities.player = Some(player);
+        let mut player = Player::new(graphics);
+        player.set_position(player_position);
+        game.list_sprites.add(player);
     }
 }
 
@@ -124,11 +121,73 @@ pub fn load(graphics: &mut Graphics, game: &mut Option<Plateformer>) {
 #[allow(unused_variables)]
 pub fn update(graphics: &mut Graphics, game: &mut Option<Plateformer>, inputs: &mut Inputs, dt: DeltaTime) {
     if let Some(game) = game {
-        // Move player
-        if let Some(player) = &mut game.entities.player {
-            player.update(&inputs, &dt);
+
+        // Sprites
+        let sprites = game.list_sprites.get_all_mut();
+
+        for (typeid, list) in sprites.iter_mut() {
+            for sprite in list.iter_mut() {
+               if let Some(player) = sprite.downcast_mut::<Player>() {
+                  player.update(graphics, inputs, &dt);
+                  update_sprite(typeid, player, &game.map, &dt)
+               }
+            }
         }
     }
+}
+
+fn update_sprite<T: SpriteCommonPlaterformerTrait>(_typeid: &TypeId, sprite: &mut T, map: &Map, dt: &DeltaTime) {
+    let _sprite_position = sprite.get_position().clone();
+
+    // Collide detection
+    let mut collide = false;
+
+    let mut velocity = *sprite.get_mut_velocity();
+
+    // -- Right 
+    if !collide && velocity.vx > 0. {
+        collide = map.collide(level::MapElementCollideType::Right, sprite);
+    }
+
+    // -- Left
+    if !collide && velocity.vx < 0. {
+        collide = map.collide(level::MapElementCollideType::Left, sprite);
+    }
+
+    // -- Stop !
+    if collide {
+        velocity.vx = 0.;
+        sprite.set_x(((sprite.get_position().x + (sprite.get_size().w as Position / 2.) / sprite.get_size().w as Position)).floor());
+    }
+    collide = false;
+
+    // Above
+    if !collide && velocity.vy < 0. {
+        collide = map.collide(level::MapElementCollideType::Above, sprite);
+        if collide {
+          velocity.vy = 0.;
+          sprite.set_y(((sprite.get_position().y + (sprite.get_size().h as Position / 2.) / sprite.get_size().h as Position)).floor());
+        }
+    }
+
+    // Below
+    if sprite.get_standing() || velocity.vy > 0. {
+        collide = map.collide(level::MapElementCollideType::Below, sprite);
+        if collide {
+            sprite.set_standing(true);
+            velocity.vy = 0.;
+            sprite.set_y(((sprite.get_position().y + (sprite.get_size().w as Position / 2.) / sprite.get_size().h as Position)).floor());
+        }
+        else {
+            sprite.set_standing(false);
+        }
+    }
+    // Sprite falling
+    if sprite.get_standing() == false {
+        velocity.vy += SPRITE_FALLING * dt;
+    }
+
+    sprite.set_velocity(velocity);
 }
 
 
@@ -159,10 +218,16 @@ pub fn draw(graphics: &mut Graphics, game: &mut Option<Plateformer>, inputs: &mu
             }
         }
 
-        // Draw player
-        if let Some(player) = &mut game.entities.player {
-            player.draw(graphics);
-        }
+        // Draw sprites
+        let sprites = game.list_sprites.get_all_mut();
+
+        for (typeid, list) in sprites.iter_mut() {
+            for sprite in list.iter_mut() {
+                if let Some(player) = sprite.downcast_mut::<Player>() {
+                    player.draw(graphics);
+                }
+            }
+        } 
     
     }
 }
