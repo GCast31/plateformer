@@ -38,8 +38,8 @@ impl From<Position2d> for MapCoord {
 impl MapCoord {
     pub fn to_position2d(coord: MapCoord) -> Position2d {
         Position2d{
-            x: (coord.col as f32 - 1_f32) * MAP_TILE_SIZE,
-            y: (coord.lig as f32 - 1_f32) * MAP_TILE_SIZE,
+            x: (coord.col as f32) * MAP_TILE_SIZE,
+            y: (coord.lig as f32) * MAP_TILE_SIZE,
         }
     }
 }

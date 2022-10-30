@@ -13,7 +13,7 @@ pub mod player;
 
 use std::any::TypeId;
 
-use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime, Position2d, Position, Positionable, WithPosition, WithSize, Movable, Standing};
+use game2d::game::common::{GAME_FONT_DEFAULT_, GAME_FONT_DEFAULT_SIZE, DeltaTime, Position2d, Position, Positionable, WithPosition, WithSize, Movable, Standing, Scale2d};
 use game2d::game::game::*;
 use game2d::game::inputs::Inputs;
 use game2d::game::sprites::Sprites;
@@ -21,7 +21,7 @@ use game2d::graphics::color::Color;
 use game2d::graphics::fonts::FontsManager;
 use game2d::graphics::graphics::{Graphics, Drawable};
 use game2d::inputs::keyboard::Keys;
-use level::Map;
+use level::{Map, MapCoord};
 use player::Player;
 
 
@@ -30,7 +30,7 @@ use player::Player;
 // ################################################################################################################
 pub const GAME_WINDOW_HEIGHT: u32 = 600;
 pub const GAME_WINDOW_WIDTH: u32 = 800;
-
+pub const GAME_SCALE: Scale2d = Scale2d {sx: 1. , sy: 1.};
 
 const SPRITE_FALLING: f32 = 20.;
 
@@ -72,6 +72,7 @@ fn main() {
     let mut fonts_manager: FontsManager = FontsManager::new(graphics.get_fonts_creator());
     let font_detail = fonts_manager.load_font(&mut font_context, GAME_FONT_DEFAULT_.to_string(), GAME_FONT_DEFAULT_SIZE).unwrap();
     graphics.set_font(font_detail);
+    graphics.set_scale(GAME_SCALE);
 
     // Game
     Game::new(graphics)
@@ -144,6 +145,8 @@ fn update_sprite<T: SpriteCommonPlaterformerTrait>(_typeid: &TypeId, sprite: &mu
 
     let mut velocity = *sprite.get_mut_velocity();
 
+    let mut modify_position = false;
+
     // -- Right 
     if !collide && velocity.vx > 0. {
         collide = map.collide(level::MapElementCollideType::Right, sprite);
@@ -167,6 +170,7 @@ fn update_sprite<T: SpriteCommonPlaterformerTrait>(_typeid: &TypeId, sprite: &mu
         if collide {
           velocity.vy = 0.;
           sprite.set_y(((sprite.get_position().y + (sprite.get_size().h as Position / 2.) / sprite.get_size().h as Position)).floor());
+          modify_position = true;
         }
     }
 
@@ -177,6 +181,7 @@ fn update_sprite<T: SpriteCommonPlaterformerTrait>(_typeid: &TypeId, sprite: &mu
             sprite.set_standing(true);
             velocity.vy = 0.;
             sprite.set_y(((sprite.get_position().y + (sprite.get_size().w as Position / 2.) / sprite.get_size().h as Position)).floor());
+            modify_position = true;
         }
         else {
             sprite.set_standing(false);
@@ -185,6 +190,13 @@ fn update_sprite<T: SpriteCommonPlaterformerTrait>(_typeid: &TypeId, sprite: &mu
     // Sprite falling
     if sprite.get_standing() == false {
         velocity.vy += SPRITE_FALLING * dt;
+    }
+
+    if modify_position {
+        //let coord = MapCoord::from(sprite.get_position().clone());
+        //println!("{:?}, {:?}", _sprite_position.x, _sprite_position.y);
+        //println!("{:?}, {:?}", coord.col, coord.lig);
+        //sprite.set_position(MapCoord::to_position2d(coord));
     }
 
     sprite.set_velocity(velocity);
